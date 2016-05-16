@@ -14,11 +14,13 @@ import org.encog.neural.networks.training.propagation.resilient.ResilientPropaga
 public class Main {
 	private static final int PAST_FRAME_SIZE = 25;
 
-	private static final int HIDDEN_LAYER_SIZE = 12;
+	private static final int HIDDEN_LAYER_SIZE = 25;
 
 	private static final int FUTURE_FRAME_SIZE = 5;
 
-	private static final double TRAINING_STOP_ERROR = 0.015;
+	private static final double TRAINING_STOP_ERROR = 0.1;
+
+	private static final long TRAINING_TIMEOUT = 1000 * 60 * 60;
 
 	private static Integer TIME_SERIES[] = { 3938, 1317, 4021, 10477, 9379,
 			7707, 9507, 4194, 2681, 3522, 5599, 5641, 6737, 7781, 2044, 1501,
@@ -86,6 +88,14 @@ public class Main {
 		network.reset();
 	}
 
+	private static double distance(double[] a, double[] b) {
+		double value = 0.0;
+		for (int i = 0; i < a.length && i < b.length; i++) {
+			value += (a[i] - b[i]) * (a[i] - b[i]);
+		}
+		return Math.sqrt(value);
+	}
+
 	public static void main(String[] args) {
 		System.out.println("Finding min and max value ...");
 		double min = (double) Collections.min(Arrays.asList(TIME_SERIES));
@@ -126,19 +136,22 @@ public class Main {
 				trainingSet);
 
 		int epoch = 1;
+		long start = System.currentTimeMillis();
 		do {
 			train.iteration();
-			System.out.println("Epoch#" + epoch + " Error:" + train.getError());
+			System.out.println("" + epoch + "\t" + train.getError());
 			epoch++;
-		} while (train.getError() > TRAINING_STOP_ERROR);
+		} while (train.getError() > TRAINING_STOP_ERROR
+				&& System.currentTimeMillis() - start < TRAINING_TIMEOUT);
 		train.finishTraining();
 
 		/*
 		 * Form validation set.
 		 */
 		System.out.println("Validating data set forming ...");
-		inputSet = new double[normalized.length * 1 / 3-FUTURE_FRAME_SIZE+1][PAST_FRAME_SIZE];
-		expectedSet = new double[normalized.length * 1 / 3-FUTURE_FRAME_SIZE+1][FUTURE_FRAME_SIZE];
+		inputSet = new double[normalized.length * 1 / 3 - FUTURE_FRAME_SIZE + 1][PAST_FRAME_SIZE];
+		expectedSet = new double[normalized.length * 1 / 3 - FUTURE_FRAME_SIZE
+				+ 1][FUTURE_FRAME_SIZE];
 		for (int i = 0, j = (normalized.length * 2 / 3) - PAST_FRAME_SIZE; j < normalized.length
 				- (PAST_FRAME_SIZE + FUTURE_FRAME_SIZE - 1); i++, j++) {
 			System.arraycopy(normalized, j, inputSet[i], 0, inputSet[i].length);
@@ -150,8 +163,10 @@ public class Main {
 		System.out.println("Validating ...");
 		for (MLDataPair pair : validatingSet) {
 			MLData output = network.compute(pair.getInput());
-			System.out.println(Arrays.toString(pair.getInput().getData())
-					+ "\t" + Arrays.toString(output.getData()) + "\t"
+			System.out.println(""
+					+ distance(pair.getIdeal().getData(), output.getData()) + "\t"
+					+ Arrays.toString(pair.getInput().getData()) + "\t"
+					+ Arrays.toString(output.getData()) + "\t"
 					+ Arrays.toString(pair.getIdeal().getData()));
 		}
 
