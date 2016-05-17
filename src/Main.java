@@ -1,3 +1,4 @@
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -15,6 +16,10 @@ public class Main {
 	private static final int PAST_FRAME_SIZE = 25;
 
 	private static final int HIDDEN_LAYER_SIZE = 26;
+
+	private static final int MIN_HIDDEN_LAYER_SIZE = 1;
+
+	private static final int MAX_HIDDEN_LAYER_SIZE = 30;
 
 	private static final int FUTURE_FRAME_SIZE = 5;
 
@@ -88,6 +93,18 @@ public class Main {
 		network.reset();
 	}
 
+	private static void setupNetwork(int inputSize, int hiddenSize,
+			int outputSize) {
+		network = new BasicNetwork();
+		network.addLayer(new BasicLayer(null, true, inputSize));
+		network.addLayer(new BasicLayer(new ActivationSigmoid(), true,
+				hiddenSize));
+		network.addLayer(new BasicLayer(new ActivationSigmoid(), false,
+				outputSize));
+		network.getStructure().finalizeStructure();
+		network.reset();
+	}
+
 	private static double distance(double[] a, double[] b) {
 		double value = 0.0;
 		for (int i = 0; i < a.length && i < b.length; i++) {
@@ -96,19 +113,24 @@ public class Main {
 		return Math.sqrt(value);
 	}
 
-	public static void main(String[] args) {
-		System.out.println("Finding min and max value ...");
-		double min = (double) Collections.min(Arrays.asList(TIME_SERIES));
-		double max = (double) Collections.max(Arrays.asList(TIME_SERIES));
+	private static void singleNetworkExperiment(PrintStream out,
+			Integer[] series, int inputSize, int hiddenSize, int outputSize) {
+		out.println("Setup network " + inputSize + "-" + hiddenSize + "-"
+				+ outputSize + " ...");
+		setupNetwork(inputSize, hiddenSize, outputSize);
 
-		System.out.println("Normalizing ...");
-		double normalized[] = new double[TIME_SERIES.length];
-		for (int i = 0; i < TIME_SERIES.length; i++) {
-			normalized[i] = (TIME_SERIES[i] - min) / (max - min);
+		out.println("Finding min and max value ...");
+		double min = (double) Collections.min(Arrays.asList(series));
+		double max = (double) Collections.max(Arrays.asList(series));
+
+		out.println("Normalizing ...");
+		double normalized[] = new double[series.length];
+		for (int i = 0; i < series.length; i++) {
+			normalized[i] = (series[i] - min) / (max - min);
 		}
-		System.out.println(Arrays.toString(normalized));
+		out.println(Arrays.toString(normalized));
 
-		System.out.println("Splitting train and validation set ...");
+		out.println("Splitting train and validation set ...");
 		double training[] = new double[normalized.length * 2 / 3];
 		System.arraycopy(normalized, 0, training, 0, training.length);
 		double testing[] = new double[normalized.length * 1 / 3];
@@ -118,57 +140,70 @@ public class Main {
 		/*
 		 * Form training set.
 		 */
-		System.out.println("Training data set forming ...");
-		double inputSet[][] = new double[normalized.length * 2 / 3][PAST_FRAME_SIZE];
-		double expectedSet[][] = new double[normalized.length * 2 / 3][FUTURE_FRAME_SIZE];
-		for (int i = 0; i < (normalized.length * 2 / 3) - PAST_FRAME_SIZE; i++) {
+		out.println("Training data set forming ...");
+		double inputSet[][] = new double[normalized.length * 2 / 3][inputSize];
+		double expectedSet[][] = new double[normalized.length * 2 / 3][outputSize];
+		for (int i = 0; i < (normalized.length * 2 / 3) - inputSize; i++) {
 			System.arraycopy(normalized, i, inputSet[i], 0, inputSet[i].length);
-			System.arraycopy(normalized, i + PAST_FRAME_SIZE, expectedSet[i],
-					0, expectedSet[i].length);
+			System.arraycopy(normalized, i + inputSize, expectedSet[i], 0,
+					expectedSet[i].length);
 		}
 		MLDataSet trainingSet = new BasicMLDataSet(inputSet, expectedSet);
 
 		/*
 		 * Train the network.
 		 */
-		System.out.println("Training ...");
+		out.println("Training ...");
 		ResilientPropagation train = new ResilientPropagation(network,
 				trainingSet);
 
-		int epoch = 1;
+		long epoch = 1;
 		long start = System.currentTimeMillis();
 		do {
 			train.iteration();
-			System.out.println("" + epoch + "\t" + train.getError());
+			System.err.println("" + epoch + "\t" + train.getError());
 			epoch++;
 		} while (train.getError() > TRAINING_STOP_ERROR
 				&& System.currentTimeMillis() - start < TRAINING_TIMEOUT);
 		train.finishTraining();
+		out.println("Epochs " + epoch + " ...");
 
 		/*
-		 * Form validation set.
+		 * Form testing set.
 		 */
-		System.out.println("Validating data set forming ...");
-		inputSet = new double[normalized.length * 1 / 3 - FUTURE_FRAME_SIZE + 1][PAST_FRAME_SIZE];
-		expectedSet = new double[normalized.length * 1 / 3 - FUTURE_FRAME_SIZE
-				+ 1][FUTURE_FRAME_SIZE];
-		for (int i = 0, j = (normalized.length * 2 / 3) - PAST_FRAME_SIZE; j < normalized.length
-				- (PAST_FRAME_SIZE + FUTURE_FRAME_SIZE - 1); i++, j++) {
+		out.println("Testing data set forming ...");
+		inputSet = new double[normalized.length * 1 / 3 - outputSize + 1][inputSize];
+		expectedSet = new double[normalized.length * 1 / 3 - outputSize + 1][outputSize];
+		for (int i = 0, j = (normalized.length * 2 / 3) - inputSize; j < normalized.length
+				- (inputSize + outputSize - 1); i++, j++) {
 			System.arraycopy(normalized, j, inputSet[i], 0, inputSet[i].length);
-			System.arraycopy(normalized, j + PAST_FRAME_SIZE, expectedSet[i],
-					0, expectedSet[i].length);
+			System.arraycopy(normalized, j + inputSize, expectedSet[i], 0,
+					expectedSet[i].length);
 		}
-		MLDataSet validatingSet = new BasicMLDataSet(inputSet, expectedSet);
+		MLDataSet testingSet = new BasicMLDataSet(inputSet, expectedSet);
 
-		System.out.println("Validating ...");
-		for (MLDataPair pair : validatingSet) {
+		out.println("Testing ...");
+		for (MLDataPair pair : testingSet) {
 			MLData output = network.compute(pair.getInput());
-			System.out.println("\t"
-					+ distance(pair.getIdeal().getData(), output.getData()) + "\t"
-					+ Arrays.toString(pair.getInput().getData()) + "\t"
+			out.println("\t"
+					+ distance(pair.getIdeal().getData(), output.getData())
+					+ "\t" + Arrays.toString(pair.getInput().getData()) + "\t"
 					+ Arrays.toString(output.getData()) + "\t"
 					+ Arrays.toString(pair.getIdeal().getData()));
 		}
+	}
+
+	private static void hiddenLayrSizeRangeExperiment() {
+		for (int h = MAX_HIDDEN_LAYER_SIZE; h >= MIN_HIDDEN_LAYER_SIZE; h--) {
+			singleNetworkExperiment(System.out, TIME_SERIES, PAST_FRAME_SIZE,
+					h, FUTURE_FRAME_SIZE);
+		}
+	}
+
+	public static void main(String[] args) {
+		// singleNetworkExperiment(System.out, TIME_SERIES, PAST_FRAME_SIZE,
+		// HIDDEN_LAYER_SIZE, FUTURE_FRAME_SIZE);
+		hiddenLayrSizeRangeExperiment();
 
 		Encog.getInstance().shutdown();
 	}
