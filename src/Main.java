@@ -14,11 +14,11 @@ import org.encog.neural.networks.training.propagation.resilient.ResilientPropaga
 public class Main {
 	private static final int PAST_FRAME_SIZE = 25;
 
-	private static final int HIDDEN_LAYER_SIZE = 25;
+	private static final int HIDDEN_LAYER_SIZE = 26;
 
 	private static final int FUTURE_FRAME_SIZE = 5;
 
-	private static final double TRAINING_STOP_ERROR = 0.1;
+	private static final double TRAINING_STOP_ERROR = 0.0001;
 
 	private static final long TRAINING_TIMEOUT = 1000 * 60 * 60;
 
@@ -163,7 +163,7 @@ public class Main {
 		System.out.println("Validating ...");
 		for (MLDataPair pair : validatingSet) {
 			MLData output = network.compute(pair.getInput());
-			System.out.println(""
+			System.out.println("\t"
 					+ distance(pair.getIdeal().getData(), output.getData()) + "\t"
 					+ Arrays.toString(pair.getInput().getData()) + "\t"
 					+ Arrays.toString(output.getData()) + "\t"
