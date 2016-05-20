@@ -15,6 +15,10 @@ import org.encog.neural.networks.training.propagation.resilient.ResilientPropaga
 public class Main {
 	private static final int PAST_FRAME_SIZE = 25;
 
+	private static final int MIN_PAST_FRAME_SIZE = 5;
+
+	private static final int MAX_PAST_FRAME_SIZE = 35;
+
 	private static final int HIDDEN_LAYER_SIZE = 26;
 
 	private static final int MIN_HIDDEN_LAYER_SIZE = 1;
@@ -128,7 +132,7 @@ public class Main {
 		for (int i = 0; i < series.length; i++) {
 			normalized[i] = (series[i] - min) / (max - min);
 		}
-		out.println(Arrays.toString(normalized));
+		out.println("\t\t" + Arrays.toString(normalized));
 
 		out.println("Splitting train and validation set ...");
 		double training[] = new double[normalized.length * 2 / 3];
@@ -161,12 +165,12 @@ public class Main {
 		long start = System.currentTimeMillis();
 		do {
 			train.iteration();
-			System.err.println("" + epoch + "\t" + train.getError());
+			//System.err.println("" + epoch + "\t" + train.getError());
 			epoch++;
 		} while (train.getError() > TRAINING_STOP_ERROR
 				&& System.currentTimeMillis() - start < TRAINING_TIMEOUT);
 		train.finishTraining();
-		out.println("Epochs " + epoch + " ...");
+		out.println("Epochs\t" + epoch + "\t...");
 
 		/*
 		 * Form testing set.
@@ -183,14 +187,19 @@ public class Main {
 		MLDataSet testingSet = new BasicMLDataSet(inputSet, expectedSet);
 
 		out.println("Testing ...");
+		double average = 0.0;
 		for (MLDataPair pair : testingSet) {
 			MLData output = network.compute(pair.getInput());
+			double distance = distance(pair.getIdeal().getData(), output.getData());
+			average += distance;
 			out.println("\t"
-					+ distance(pair.getIdeal().getData(), output.getData())
+					+ distance
 					+ "\t" + Arrays.toString(pair.getInput().getData()) + "\t"
 					+ Arrays.toString(output.getData()) + "\t"
 					+ Arrays.toString(pair.getIdeal().getData()));
 		}
+		average /= Math.min(inputSet.length, expectedSet.length);
+		out.println("Average\t" + average + "\t...");
 	}
 
 	private static void hiddenLayrSizeRangeExperiment() {
@@ -200,10 +209,22 @@ public class Main {
 		}
 	}
 
+	private static void pastFrameSizeRangeExperiment(int hiddenSize,
+			int outputSize) {
+		for (int pfs = MAX_PAST_FRAME_SIZE; pfs >= MIN_PAST_FRAME_SIZE; pfs--) {
+			singleNetworkExperiment(System.out, TIME_SERIES, pfs, hiddenSize,
+					outputSize);
+		}
+	}
+
 	public static void main(String[] args) {
 		// singleNetworkExperiment(System.out, TIME_SERIES, PAST_FRAME_SIZE,
 		// HIDDEN_LAYER_SIZE, FUTURE_FRAME_SIZE);
-		hiddenLayrSizeRangeExperiment();
+		// hiddenLayrSizeRangeExperiment();
+
+		pastFrameSizeRangeExperiment(22, 5);
+		pastFrameSizeRangeExperiment(12, 5);
+		pastFrameSizeRangeExperiment(9, 5);
 
 		Encog.getInstance().shutdown();
 	}
