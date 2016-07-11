@@ -1,7 +1,7 @@
 #install.packages("igraph")
 #install.packages("network") 
 #install.packages("sna")
-#install.packages("ndtv")
+#install.fully_connected_05jul2016packages("ndtv")
 
 #TODO Change weights strength between different types of neurons.
 
@@ -42,5 +42,6 @@ E(net)$edge.color <- "black"
 
 plot(net)
 #plot(net,layout=layout_in_circle)
+
 legend(x=-1.5, y=-0.5, c("Bias","Input", "Regular", "Output"), pch=21,
        col="#777777", pt.bg=colrs, pt.cex=1.2, cex=1.0, bty="n", ncol=1)
