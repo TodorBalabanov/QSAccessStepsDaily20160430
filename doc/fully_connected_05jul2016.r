@@ -3,6 +3,8 @@
 #install.packages("sna")
 #install.packages("ndtv")
 
+#TODO Change weights strength between different types of neurons.
+
 # Load data.
 nodes <- read.csv("nodes.csv", header=T, as.is=T)
 links <- read.csv("edges.csv", header=T, as.is=T)
