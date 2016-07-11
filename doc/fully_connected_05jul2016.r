@@ -1,7 +1,7 @@
 #install.packages("igraph")
 #install.packages("network") 
 #install.packages("sna")
-#install.fully_connected_05jul2016packages("ndtv")
+#install.packages("ndtv")
 
 #TODO Change weights strength between different types of neurons.
 
